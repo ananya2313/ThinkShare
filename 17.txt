@@ -1,0 +1,7 @@
+ek aisa ap h jispe user post  likh paaenge
+user create krnen hai
+login and logout
+register
+post creation
+post like
+post delete

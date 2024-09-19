@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Post</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-indigo-900 p-4 w-full fixed top-0 left-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="#" class="text-white text-xl font-bold"><i>ThinkShare</i></a>
+            <div class="space-x-4">
+                <a href="#" class="text-gray-300 hover:text-yellow-400">Home</a>
+                <a href="#" class="text-gray-300 hover:text-yellow-400">About</a>
+                <a href="#" class="text-gray-300 hover:text-yellow-400">Contact</a>
+                <a href="/profile" class="text-gray-300 hover:text-yellow-400">All posts</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex items-center justify-center min-h-screen pt-20">
+        <div class="w-full max-w-lg bg-zinc-800 p-8 rounded-lg shadow-lg">
+            <h5 class="text-purple-500 text-2xl mb-6 text-center">Edit your post</h5>
+            <form action="/update/<%= post.id %>" method="post">
+                <textarea placeholder="What's new?"
+                    class="block w-full h-32 p-3 border-2 border-zinc-600 outline-none resize-none bg-transparent rounded-md mb-4"
+                    name="content" id=""><%= post.content %></textarea>
+                <input class="px-4 py-2 text-sm bg-yellow-600 text-black block rounded-md w-full cursor-pointer transition-colors duration-300 hover:bg-yellow-500"
+                    value="Update Post" type="submit">
+            </form>
+        </div>
+    </div>
+
+</body>
+
+</html>
