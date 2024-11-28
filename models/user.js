@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-mongoose.connect("mongodb://127.0.0.1:27017/miniprojectpostcreation")
+mongoose.connect("mongodb://127.0.0.1:27017/projectt")
 
 const userSchema = mongoose.Schema({
     username : String,

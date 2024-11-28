@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 const userModel = require('./models/user')
 const postModel = require("./models/post")
+const adminModel= require("./models/admin");
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt')
@@ -9,7 +10,7 @@ const crypto = require('crypto')
 const path = require('path')
 // const multer = require("multer")
 const upload = require("./config/multerconfig");
-const user = require('./models/user');
+// const user = require('./models/user');
 
 
 app.set("view engine", "ejs")
@@ -76,6 +77,110 @@ app.post("/login", async (req, res) => {
         else res.redirect("/login")
     })
 })
+
+
+// Admin Registration Route
+app.get('/admin/register', (req, res) => {
+    res.render('adminRegister'); // Renders the admin registration page
+});
+
+app.post('/admin/register', async (req, res) => {
+    let { email, password, name } = req.body;
+
+    // Check if admin already exists
+    let admin = await adminModel.findOne({ email });
+    if (admin) return res.status(400).redirect('/admin/login'); // If admin exists, redirect to login page
+
+    bcrypt.genSalt(10, (err, salt) => {
+        bcrypt.hash(password, salt, async (err, hash) => {
+            await adminModel.create({
+                name,
+                email,
+                password: hash,
+            });
+            res.redirect('/admin/login'); // Redirect to admin login page after successful registration
+        });
+    });
+});
+
+// Admin Login Route
+app.get('/admin/login', (req, res) => {
+    res.render('adminLogin'); // Renders the admin login page
+});
+
+app.post('/admin/login', async (req, res) => {
+    let { email, password } = req.body;
+
+    // Verify admin credentials
+    let admin = await adminModel.findOne({ email });
+    if (!admin) return res.status(400).send('Admin not found');
+
+    bcrypt.compare(password, admin.password, (err, result) => {
+        if (result) {
+            // Create JWT token for admin
+            let token = jwt.sign({ email: admin.email, adminid: admin._id }, 'adminSecret');
+            res.cookie('adminToken', token); // Store token in cookie
+            res.redirect('/admin/dashboard'); // Redirect to admin dashboard
+        } else {
+            res.redirect('/admin/login'); // Redirect back to login on failure
+        }
+    });
+});
+
+
+
+
+
+
+// // Admin Dashboard Route
+// app.get('/admin/dashboard', isAdminLoggedIn, (req, res) => {
+//     res.render('adminDashboard', { admin: req.admin });
+// });
+
+// // Middleware to verify admin login
+// function isAdminLoggedIn(req, res, next) {
+//     if (!req.cookies.adminToken) return res.redirect('/admin/login'); // Check if token exists
+//     let data = jwt.verify(req.cookies.adminToken, 'adminSecret'); // Verify the token
+//     req.admin = data; // Set admin data to request object
+//     next();
+// }
+
+
+
+
+
+
+// Middleware to verify admin login
+function isAdminLoggedIn(req, res, next) {
+    if (!req.cookies.adminToken) return res.redirect('/admin/login'); // Check if token exists
+    try {
+        let data = jwt.verify(req.cookies.adminToken, 'adminSecret'); // Verify the token
+        req.admin = data; // Set admin data to request object
+        next();
+    } catch (error) {
+        console.error('Token verification failed:', error);
+        return res.redirect('/admin/login'); // Redirect if token is invalid
+    }
+}
+
+// Admin dashboard route
+// Admin dashboard route
+app.get('/admin/dashboard', isAdminLoggedIn, async (req, res) => {
+    try {
+        // Fetch all users and their posts
+        const users = await userModel.find()  // Use the correct model here
+            .populate('posts') // Populate the 'posts' field if it references another model
+            .exec(); // Execute the query
+
+        // Pass users and admin data to the EJS template
+        res.render('adminDashboard', { users, admin: req.admin });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+
 
 
 app.get("/logout", async (req, res) => {
@@ -159,37 +264,7 @@ app.get("/delete/:id", isloggedin, async (req, res) => {
 
 
 
-/*
 
-//VID NO-20
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, './public/images/uploads')   //yha pe file upload hogiiii
-    },
-    filename: function (req, file, cb) {
-        crypto.randomBytes(12, function (err, bytes) {
-            const fn = bytes.toString("hex") + path.extname(file.originalname)    //extname -extension name, fn- file name
-            //path.extname(file.originalname) maanlo humare file ka naam h "abcd.jpeg" , to extname kya krega ki is file ke extension ko nikaal lega(mtlb is pure expression se hume "jpeg" ans milega)
-            cb(null,fn)
-
-        })
-        
-    }
-})
-
-const upload = multer({ storage: storage })
-
-
-app.get("/test", (req, res) => {
-    res.render("test")
-})
-
-app.post("/upload",upload.single('image'), (req, res) => {
-    console.log(req.file);
-    
-})
-
-*/
 
 app.get("/profile/upload",(req,res)=>{
     res.render("profileupload")
