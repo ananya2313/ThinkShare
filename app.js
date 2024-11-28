@@ -27,85 +27,185 @@ app.use(express.static(path.join(__dirname,"public")))
 
 
 
-app.get("/", (req, res) => {
-    res.render("index")
-})
+// app.get("/", (req, res) => {
+//     res.render("index")
+// })
 
-app.post("/register", async (req, res) => {
-    let { email, password, username, name, age } = req.body;
+// app.post("/register", async (req, res) => {
+//     let { email, password, username, name, age } = req.body;
 
-    //checking if the user already exists with this email before regstering or creating a new user
-    let user = await userModel.findOne({ email })
+//     //checking if the user already exists with this email before regstering or creating a new user
+//     let user = await userModel.findOne({ email })
     
-    if (user) return res.status(500).redirect("/login");
+//     if (user) return res.status(500).redirect("/login");
 
-    bcrypt.genSalt(10, (err, salt) => {
-        bcrypt.hash(password, salt, async (err, hash) => {
-            let user = await userModel.create({
-                username, email, age, name, password: hash
-            })
-            let token = jwt.sign({ email: email, userid: user._id }, "ananya22")
-            res.cookie("token", token)
-            res.redirect("/profile")
+//     bcrypt.genSalt(10, (err, salt) => {
+//         bcrypt.hash(password, salt, async (err, hash) => {
+//             let user = await userModel.create({
+//                 username, email, age, name, password: hash
+//             })
+//             let token = jwt.sign({ email: email, userid: user._id }, process.env.JWT_SECRET_KEY)
+//             res.cookie("token", token)
+//             res.redirect("/profile")
             
 
 
-        })
+//         })
 
 
-    })
-})
+//     })
+// })
 
+// app.get("/login", (req, res) => {
+//     res.render("login");
+// })
+
+// app.post("/login", async (req, res) => {
+//     let { email, password } = req.body;
+
+//     //checking if the user already exists with this email before regstering or creating a new user
+//     let user = await userModel.findOne({ email })
+//     if (!user) return res.status(500).send("Something went wrong");
+//     bcrypt.compare(password, user.password, function (err, result) {
+//         //if password is correct
+//         if (result) {
+//             let token = jwt.sign({ email: email, userid: user._id },process.env.JWT_SECRET_KEY)
+//             res.cookie("token", token)
+//             res.status(200).redirect("/profile");
+
+//         }
+//         else res.redirect("/login")
+//     })
+// })
+
+
+
+app.get("/", (req, res) => {
+    res.render("index");
+});
+
+// Registration Route
+app.post("/register", async (req, res) => {
+    let { email, password, username, name, age } = req.body;
+
+    // Check if the user already exists
+    let existingUser = await userModel.findOne({ email });
+    if (existingUser) return res.status(400).send("User already exists. Please login.");
+
+    // Hash password
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        
+        // Create new user
+        let newUser = await userModel.create({
+            username, email, age, name, password: hashedPassword
+        });
+        
+        // Generate JWT token
+        let token = jwt.sign({ email: newUser.email, userid: newUser._id }, process.env.JWT_SECRET_KEY);
+        
+        // Set token in cookie
+        res.cookie("token", token, {
+            httpOnly: true,  // Helps mitigate XSS attacks
+            secure: process.env.NODE_ENV === "production", // Ensures secure cookies in production
+            sameSite: "Strict", // Helps mitigate CSRF attacks
+        });
+
+        // Redirect to profile
+        res.redirect("/profile");
+    } catch (err) {
+        res.status(500).send("Server error during registration");
+    }
+});
+
+// Login Route
 app.get("/login", (req, res) => {
     res.render("login");
-})
+});
 
 app.post("/login", async (req, res) => {
     let { email, password } = req.body;
 
-    //checking if the user already exists with this email before regstering or creating a new user
-    let user = await userModel.findOne({ email })
-    if (!user) return res.status(500).send("Something went wrong");
-    bcrypt.compare(password, user.password, function (err, result) {
-        //if password is correct
-        if (result) {
-            let token = jwt.sign({ email: email, userid: user._id }, "ananya22")
-            res.cookie("token", token)
-            res.status(200).redirect("/profile");
+    try {
+        // Find user by email
+        let user = await userModel.findOne({ email });
+        if (!user) return res.status(404).send("User not found");
 
+        // Compare password
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+        if (isPasswordCorrect) {
+            // Generate JWT token with expiry
+            let token = jwt.sign({ email: user.email, userid: user._id }, process.env.JWT_SECRET_KEY, { expiresIn: '1h' });
+
+            // Set token in cookie
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production", // Secure in production
+                sameSite: "Strict",
+            });
+
+            // Redirect to profile
+            res.status(200).redirect("/profile");
+        } else {
+            res.status(401).send("Incorrect password");
         }
-        else res.redirect("/login")
-    })
-})
+    } catch (err) {
+        console.error(err); // Log the error for debugging
+        res.status(500).send("Server error during login");
+    }
+});
+
 
 
 // Admin Registration Route
 app.get('/admin/register', (req, res) => {
-    res.render('adminRegister'); // Renders the admin registration page
+    res.render('adminRegister'); 
 });
 
 app.post('/admin/register', async (req, res) => {
-    let { email, password, name } = req.body;
+    const { email, password, name, secretKey } = req.body;
 
-    // Check if admin already exists
+    if (!email || !password || !name || !secretKey) {
+        return res.status(400).send("All fields are required.");
+    }
+
+    if (secretKey !== process.env.ADMIN_KEY) {
+        return res.status(403).send("Unauthorized: Invalid secret key");
+    }
+
     let admin = await adminModel.findOne({ email });
-    if (admin) return res.status(400).redirect('/admin/login'); // If admin exists, redirect to login page
+    if (admin) return res.status(400).redirect('/admin/login'); 
 
     bcrypt.genSalt(10, (err, salt) => {
+        if (err) {
+            return res.status(500).send("Error generating salt");
+        }
+
         bcrypt.hash(password, salt, async (err, hash) => {
+            if (err) {
+                return res.status(500).send("Error hashing password");
+            }
+
             await adminModel.create({
                 name,
                 email,
                 password: hash,
             });
-            res.redirect('/admin/login'); // Redirect to admin login page after successful registration
+
+            res.redirect('/admin/login'); 
         });
     });
 });
 
+
+
+
+
+
 // Admin Login Route
 app.get('/admin/login', (req, res) => {
-    res.render('adminLogin'); // Renders the admin login page
+    res.render('adminLogin'); 
 });
 
 app.post('/admin/login', async (req, res) => {
@@ -117,44 +217,28 @@ app.post('/admin/login', async (req, res) => {
 
     bcrypt.compare(password, admin.password, (err, result) => {
         if (result) {
-            // Create JWT token for admin
-            let token = jwt.sign({ email: admin.email, adminid: admin._id }, 'adminSecret');
-            res.cookie('adminToken', token); // Store token in cookie
-            res.redirect('/admin/dashboard'); // Redirect to admin dashboard
+            let token = jwt.sign({ email: admin.email, adminid: admin._id }, process.env.ADMIN_SECRET_KEY);
+            // res.cookie('adminToken', token); 
+            res.cookie('adminToken', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 1000 * 60 * 60 * 24,
+                sameSite: 'Strict'
+            });
+
+            res.redirect('/admin/dashboard'); 
         } else {
-            res.redirect('/admin/login'); // Redirect back to login on failure
+            res.redirect('/admin/login'); 
         }
     });
 });
-
-
-
-
-
-
-// // Admin Dashboard Route
-// app.get('/admin/dashboard', isAdminLoggedIn, (req, res) => {
-//     res.render('adminDashboard', { admin: req.admin });
-// });
-
-// // Middleware to verify admin login
-// function isAdminLoggedIn(req, res, next) {
-//     if (!req.cookies.adminToken) return res.redirect('/admin/login'); // Check if token exists
-//     let data = jwt.verify(req.cookies.adminToken, 'adminSecret'); // Verify the token
-//     req.admin = data; // Set admin data to request object
-//     next();
-// }
-
-
-
-
 
 
 // Middleware to verify admin login
 function isAdminLoggedIn(req, res, next) {
     if (!req.cookies.adminToken) return res.redirect('/admin/login'); // Check if token exists
     try {
-        let data = jwt.verify(req.cookies.adminToken, 'adminSecret'); // Verify the token
+        let data = jwt.verify(req.cookies.adminToken, process.env.ADMIN_SECRET_KEY); // Verify the token
         req.admin = data; // Set admin data to request object
         next();
     } catch (error) {
@@ -163,7 +247,6 @@ function isAdminLoggedIn(req, res, next) {
     }
 }
 
-// Admin dashboard route
 // Admin dashboard route
 app.get('/admin/dashboard', isAdminLoggedIn, async (req, res) => {
     try {
@@ -198,7 +281,7 @@ app.get("/profile", isloggedin, async (req, res) => {   //hum profile pe tbhi ja
 function isloggedin(req, res, next) {
     if (req.cookies.token === "") res.redirect("/login")    //agr token blank h to phle login krna pdega(to isliye phle login krna pdega)
     else {
-        let data = jwt.verify(req.cookies.token, "ananya22");   //agr ni h, to hum jo token h usko verify krenge  ki kya ye valid token h, agr hai  to ume wahi data miljaega, wo data jo humne phli baar token create krte waqt set kiya tha(let token = jwt.sign({ email: email, userid: user._id }, "ananya22"))
+        let data = jwt.verify(req.cookies.token, process.env.JWT_SECRET_KEY);   //agr ni h, to hum jo token h usko verify krenge  ki kya ye valid token h, agr hai  to ume wahi data miljaega, wo data jo humne phli baar token create krte waqt set kiya tha(let token = jwt.sign({ email: email, userid: user._id }, "ananya22"))
 
         req.user = data;    //req.user me daalne ki wajah se ye ptq chl jaega ki kon logged in h
         next();
@@ -279,4 +362,8 @@ app.post("/upload", isloggedin, upload.single("image"),async(req,res)=>{
 
 
 })
-app.listen(3000)
+// app.listen(3000)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
