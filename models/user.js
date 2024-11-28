@@ -24,7 +24,7 @@
 // module.exports = mongoose.model('user',userSchema)
 
 const mongoose = require('mongoose');
-require('dotenv').config();  // Load environment variables from .env file
+require('dotenv').config();
 const mongoURI = process.env.MONGODB_URL;
 
 // Connect to MongoDB without deprecated options
