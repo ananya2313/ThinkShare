@@ -1,9 +1,11 @@
 {
   "name": "17th",
   "version": "1.0.0",
-  "description": "",
+  "description": "A project using Express and EJS for backend and frontend integration",
   "main": "app.js",
   "scripts": {
+    "start": "node app.js", 
+    "dev": "nodemon app.js", 
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,13 +14,17 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.6",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.1",
     "multer": "^1.4.5-lts.1",
     "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0" 
   }
 }
